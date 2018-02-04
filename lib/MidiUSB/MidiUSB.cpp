@@ -231,7 +231,7 @@ enum MidiMessageType
     MIDI_CONTROL_CHANGE           = 0xB0,    ///< Control Change / Channel Mode
     MIDI_PROGRAM_CHANGE           = 0xC0,    ///< Program Change
     MIDI_AFTERTOUCH_CHANNEL       = 0xD0,    ///< Channel (monophonic) AfterTouch
-    MIDI_PITCH_BEND               = 0xE0,    ///< Pitch Bend
+    MIDI_PITCH_BEND               = 0xE5,    ///< Pitch Bend
     MIDI_SYSTEM_EXCLUSIVE         = 0xF0,    ///< System Exclusive
     MIDI_TIME_CODE_QUARTER_FRAME  = 0xF1,    ///< System Common - MIDI Time Code Quarter Frame
     MIDI_SONG_POSITION            = 0xF2,    ///< System Common - Song Position Pointer
@@ -305,6 +305,7 @@ void MIDIController::initElement(int pinNumber, char function, char functionPara
     elementDebounceCount[numberOfElements] = 0;
     elementStatus[numberOfElements] = UP_TO_DATE;
     elementMux[numberOfElements] = mux;
+    elementLastBendState[numberOfElements] = 0;
     numberOfElements++;
 };
 
@@ -331,6 +332,14 @@ void MIDIController::update()
 
 };
 
+    String decToHex(unsigned int decValue, unsigned int desiredStringLength) {
+  
+        String hexString = String(decValue, HEX);
+        while (hexString.length() < desiredStringLength) hexString = "0" + hexString;
+  
+        return hexString;
+    }
+
 void MIDIController::readElement(int i)
 {
     if (elementDebounceCount[i] != 0)
@@ -344,6 +353,8 @@ void MIDIController::readElement(int i)
     char oldValue     = elementLastState[i];
     Multiplexer* mux  = elementMux[i];
     char changeDetected = 0;
+    int bendValue = 0;
+    int oldBendValue = elementLastBendState[i];
 
     switch(elementFunction[i])
     {
@@ -366,12 +377,16 @@ void MIDIController::readElement(int i)
             else
             {
                 delay(1);
-                currentValue = analogRead(pin) / 8;
+                //currentValue = analogRead(pin);
+                bendValue = analogRead(pin);
                 delay(1);
             }
 
             if (abs(currentValue - oldValue) > 1) changeDetected = 1;
+            if (abs(bendValue - oldBendValue) > 1) changeDetected = 1;
 
+   //         if (bendValue <= 0) { changeDetected = 1; }
+   
             break;
         }
     }
@@ -381,6 +396,8 @@ void MIDIController::readElement(int i)
         elementLastState[i] = currentValue;
         elementStatus[i] = TO_BE_UPDATED;
         elementDebounceCount[i] = DEBOUNCE_PARAMETER;
+        if (bendValue > 10) { elementLastBendState[i] = bendValue; }
+        if (bendValue <= 10) { elementLastBendState[i] = 0x0040; }
     }
 }
 
@@ -400,7 +417,18 @@ void MIDIController::updateElement(int i)
         {
             char id    = elementFunctionParameter[i];
             char value = elementLastState[i];
-            sendMidiMessage(MIDI_CONTROL_CHANGE, id, value);
+            int val = elementLastBendState[i];
+            //sendMidiMessage(MIDI_CONTROL_CHANGE, id, value);
+            //String value = decToHex(elementLastState[i],4);
+            //String LSB = value.substring(0,2);
+            //String MSB = value.substring(2);
+            if (elementLastBendState[i] == 0x0040) {
+                sendMidiMessage(MIDI_PITCH_BEND,0x00,0x40);
+            }
+            else {
+                sendMidiMessage(MIDI_PITCH_BEND,lowByte(val*32),highByte(val*32));
+            }
+
             break;
         }
     }

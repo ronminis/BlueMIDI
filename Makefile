@@ -19,18 +19,18 @@ UPLOAD_PROTOCOL = usbasp
 UPLOAD_SPEED    = 19200
 UPLOAD_PORT     = usb
 
-# Compiler
-
-CC      = avr-gcc
-CXX     = avr-g++
-AR      = avr-ar
-OBJCOPY = avr-objcopy
-AVRDUDE = avrdude
-AVRSIZE = avr-size
-
 # Arduino library stuff
 
-ARDUINODIR = /usr/share/arduino/
+ARDUINODIR = /Applications/Arduino.app/Contents/Java
+
+# Compiler
+BINPATH = $(ARDUINODIR)/hardware/tools/avr/bin
+CC      = $(BINPATH)/avr-gcc
+CXX     = $(BINPATH)/avr-g++
+AR      = $(BINPATH)/avr-ar
+OBJCOPY = $(BINPATH)/avr-objcopy
+AVRDUDE = $(BINPATH)/avrdude
+AVRSIZE = $(BINPATH)/avr-size
 
 ###############################################################################
 # Pathes, flags and stuff
@@ -53,7 +53,7 @@ LIBRARIES := $(filter $(notdir $(wildcard $(ARDUINODIR)/libraries/*)), \
 
 # Check arduino folder is correct
 
-ifeq "$(wildcard $(ARDUINODIR)/hardware/arduino/boards.txt)" ""
+ifeq "$(wildcard $(ARDUINODIR)/hardware/arduino/avr/boards.txt)" ""
 $(error ARDUINODIR is not set correctly; arduino software not found)
 endif
 
@@ -68,7 +68,7 @@ AVRTOOLSPATH += $(ARDUINODIR)/hardware/tools/avr/bin
 TARGET := $(if $(TARGET),$(TARGET),a.out)
 OBJECTS := $(addsuffix .o, $(basename $(SOURCES)))
 DEPFILES := $(patsubst %, .dep/%.dep, $(SOURCES))
-ARDUINOCOREDIR := $(ARDUINODIR)/hardware/arduino/cores/arduino
+ARDUINOCOREDIR := $(ARDUINODIR)/hardware/arduino/avr/cores/arduino
 ARDUINOLIB := .lib/arduino.a
 ARDUINOLIBLIBSDIR := $(ARDUINODIR)/libraries
 ARDUINOLIBLIBSPATH := $(foreach lib, $(LIBRARIES), \
@@ -84,7 +84,7 @@ CPPFLAGS += -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums
 CPPFLAGS += -mmcu=$(BOARD_BUILD_MCU)
 CPPFLAGS += -DF_CPU=$(BOARD_BUILD_FCPU) -DARDUINO=$(ARDUINOCONST)
 CPPFLAGS += -I. -I./lib/*/ -I$(ARDUINOCOREDIR)
-CPPFLAGS += -I$(ARDUINODIR)/hardware/arduino/variants/$(BOARD_BUILD_VARIANT)/
+CPPFLAGS += -I$(ARDUINODIR)/hardware/arduino/avr/variants/$(BOARD_BUILD_VARIANT)/
 CPPFLAGS += $(addprefix -I$(ARDUINODIR)/libraries/, $(LIBRARIES))
 CPPFLAGS += $(patsubst %, -I$(ARDUINODIR)/libraries/%/utility, $(LIBRARIES))
 CPPDEPFLAGS = -MMD -MP -MF .dep/$<.dep
@@ -119,7 +119,7 @@ upload:
 	@echo " Uploading to board..."
 	@echo "#######################"
 	@echo " "
-	su root --command "$(AVRDUDE) $(AVRDUDEFLAGS) -v -F -B 1 -U flash:w:$(TARGET).hex"
+	sudo $(AVRDUDE) $(AVRDUDEFLAGS) -C /Applications/Arduino.app/Contents/Java/hardware/tools/avr/etc/avrdude.conf -v -F -B 1 -U flash:w:$(TARGET).hex
 
 clean:
 	@echo " "
@@ -132,6 +132,7 @@ clean:
 
 bootloader:
 	@echo " "
+	@echo "$(CC)"
 	@echo "#######################"
 	@echo " Compiling USBasp bootloader..."
 	@echo " Note : this Makefile passed the following parameters to the bootloader's Makefile :"
@@ -148,8 +149,8 @@ bootloader-flash:
 	@echo " Attempting to flash bootloader using Arduino as in-situ programmer (AVRisp)..."
 	@echo "#######################"
 	@echo " "
-	$(MAKE) -C bootloader fuse  DEVICE=$(BOARD_BUILD_MCU) PROGRAMMER='-c avrisp -P `ls /dev/ttyACM*` -b $(UPLOAD_SPEED)' LOCKOPT='-U lock:w:0xcf:m'
-	$(MAKE) -C bootloader flash DEVICE=$(BOARD_BUILD_MCU) PROGRAMMER='-c avrisp -P `ls /dev/ttyACM*` -b $(UPLOAD_SPEED)' LOCKOPT='-U lock:w:0xcf:m'
+	$(MAKE) -C bootloader fuse  DEVICE=$(BOARD_BUILD_MCU) PROGRAMMER='-C /Applications/Arduino.app/Contents/Java/hardware/tools/avr/etc/avrdude.conf -c avrisp -P /dev/cu.usbmodem1411 -b $(UPLOAD_SPEED)' LOCKOPT='-U lock:w:0xcf:m'
+	$(MAKE) -C bootloader flash DEVICE=$(BOARD_BUILD_MCU) PROGRAMMER='-C /Applications/Arduino.app/Contents/Java/hardware/tools/avr/etc/avrdude.conf -c avrisp -P /dev/cu.usbmodem1411 -b $(UPLOAD_SPEED)' LOCKOPT='-U lock:w:0xcf:m'
 
 ###############################################################################
 # Building rules

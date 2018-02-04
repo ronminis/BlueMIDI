@@ -34,6 +34,7 @@ class MIDIController
         char elementLastState        [MAX_NUMBER_OF_ELEMENTS];
         char elementDebounceCount    [MAX_NUMBER_OF_ELEMENTS];
         char elementStatus           [MAX_NUMBER_OF_ELEMENTS];
+        int elementLastBendState    [MAX_NUMBER_OF_ELEMENTS];
 
 
         Multiplexer* elementMux      [MAX_NUMBER_OF_ELEMENTS];
